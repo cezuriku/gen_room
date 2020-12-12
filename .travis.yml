@@ -1,0 +1,4 @@
+language: erlang
+otp_release:
+  - 23.0
+script: rebar3 get-deps && rebar3 compile && rebar3 eunit && rebar3 ct
