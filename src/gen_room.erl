@@ -7,6 +7,8 @@
     start_link/0,
     register_client/4,
     unregister_client/2,
+    send/4,
+    send_all/3,
     stop/1
 ]).
 
@@ -48,6 +50,14 @@ register_client(GenRoomPid, ClientModule, ClientPid, ClientData) ->
 unregister_client(Pid, ClientId) ->
     gen_server:cast(Pid, {unregister_client, ClientId}).
 
+-spec send(pid(), client_id(), client_id(), term()) -> ok.
+send(Pid, SenderId, TargetId, Packet) ->
+    gen_server:cast(Pid, {send, SenderId, TargetId, Packet}).
+
+-spec send_all(pid(), client_id(), term()) -> ok.
+send_all(Pid, SenderId, Packet) ->
+    gen_server:cast(Pid, {send_all, SenderId, Packet}).
+
 -spec stop(pid()) -> ok.
 stop(Pid) ->
     gen_server:stop(Pid).
@@ -73,6 +83,19 @@ handle_cast({unregister_client, ClientId}, #{clients := Clients} = Data) ->
         NewClients
     ),
     {noreply, Data#{clients := NewClients}};
+handle_cast({send, SenderId, TargetId, Packet}, #{clients := Clients} = Data) ->
+    #{TargetId := #{module := CbModule, pid := TargetPid}} = Clients,
+    ok = CbModule:handle_packet(TargetPid, SenderId, private, Packet),
+    {noreply, Data};
+handle_cast({send_all, SenderId, Packet}, #{clients := Clients} = Data) ->
+    maps:fold(
+        fun(_Id, #{module := CbModule, pid := Pid}, ok) ->
+            ok = CbModule:handle_packet(Pid, SenderId, public, Packet)
+        end,
+        ok,
+        maps:without([SenderId], Clients)
+    ),
+    {noreply, Data};
 handle_cast(EventContent, Data) ->
     %% Ignore all other events
     io:format(

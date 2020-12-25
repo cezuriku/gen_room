@@ -10,3 +10,10 @@
     Pid :: pid(),
     Id :: gen_room:client_id()
 ) -> ok.
+
+-callback handle_packet(
+    Pid :: pid(),
+    From :: gen_room:client_id(),
+    Scope :: public | private,
+    Packet :: term()
+) -> ok.

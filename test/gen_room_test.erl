@@ -16,6 +16,7 @@ gen_room_test_() ->
 setup() ->
     ?WHEN(dummy_module:handle_client_added(_, _, _) -> ok),
     ?WHEN(dummy_module:handle_client_removed(_, _) -> ok),
+    ?WHEN(dummy_module:handle_packet(_, _, _, _) -> ok),
     {ok, RoomPid} = gen_room:start_link(),
     RoomPid.
 
@@ -40,3 +41,24 @@ gen_room_unregister_client_test(RoomPid) ->
         gen_room:register_client(RoomPid, dummy_module, dummy_pid2, dummy_data2),
     ok = gen_room:unregister_client(RoomPid, 0),
     ?WAS_CALLED(dummy_module:handle_client_removed(dummy_pid2, 0)).
+
+gen_room_send_packet_test(RoomPid) ->
+    {ok, 0, #{}} =
+        gen_room:register_client(RoomPid, dummy_module, dummy_pid0, dummy_data),
+    {ok, 1, #{}} =
+        gen_room:register_client(RoomPid, dummy_module, dummy_pid1, dummy_data),
+
+    ok = gen_room:send(RoomPid, 0, 1, dummy_data1),
+    ?WAS_CALLED(dummy_module:handle_packet(dummy_pid1, 0, private, dummy_data1)).
+
+gen_room_send_all_packet_test(RoomPid) ->
+    {ok, 0, #{}} =
+        gen_room:register_client(RoomPid, dummy_module, dummy_pid0, dummy_data),
+    {ok, 1, #{}} =
+        gen_room:register_client(RoomPid, dummy_module, dummy_pid1, dummy_data),
+    {ok, 2, #{}} =
+        gen_room:register_client(RoomPid, dummy_module, dummy_pid2, dummy_data),
+
+    ok = gen_room:send_all(RoomPid, 0, dummy_data1),
+    ?WAS_CALLED(dummy_module:handle_packet(dummy_pid1, 0, public, dummy_data1)),
+    ?WAS_CALLED(dummy_module:handle_packet(dummy_pid2, 0, public, dummy_data1)).
